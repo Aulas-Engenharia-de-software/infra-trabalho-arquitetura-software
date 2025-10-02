@@ -1,8 +1,12 @@
 import boto3
 from os import environ as env
 
+SNS_TOPIC_ARN = env['SNS_TOPIC_ARN']
 AWS_REGION = env['AWS_REGION']
+OUTPUT_FILE = env['OUTPUT_FILE']
 STUDENTS_FILE = env['STUDENTS_FILE']
+PREFIX_SQS = env['PREFIXO_SQS']
+PAUSE_TIME = 2
 
 iam_client = boto3.client('iam', region_name=AWS_REGION)
 sqs_client = boto3.client('sqs', region_name=AWS_REGION)
@@ -27,10 +31,10 @@ def delete_sqs_for_students_list():
     for student_name in students:
         print(f"--- Desprovisionando para o aluno: {student_name} ---")
 
-        user_name = f"aluno-{student_name}"
-        policy_name = f"politica-sqs-{student_name}"
+        queue_name = f"{PREFIX_SQS}{student_name}"
+        user_name = f"aluno_{student_name}"
+        policy_name = f"politica_sqs_{student_name}"
         policy_arn = f"arn:aws:iam::{account_id}:policy/{policy_name}"
-        queue_name = f"fila-{student_name}"
 
         try:
             print(f"Deletando chaves de {user_name}...")

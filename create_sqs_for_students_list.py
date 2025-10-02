@@ -4,35 +4,34 @@ from os import environ as env
 
 import boto3
 
-SNS_TOPIC_ARN = env['SNS_TOPIC_ARN']
-AWS_REGION = env['AWS_REGION']
-OUTPUT_FILE = env['OUTPUT_FILE']
-STUDENTS_FILE = env['STUDENTS_FILE']
-PREFIX_SQS = env['PREFIXO_SQS']
+AWS_REGION = env.get('AWS_REGION', 'us-west-1')
+OUTPUT_FILE = env.get('OUTPUT_FILE', 'credenciais_alunos.txt')
+STUDENTS_FILE = env.get('STUDENTS_FILE', 'alunos.txt')
+PREFIX_SQS = env.get('PREFIX_SQS', 'fila_')
 PAUSE_TIME = 2
 
 iam_client = boto3.client('iam', region_name=AWS_REGION)
 sqs_client = boto3.client('sqs', region_name=AWS_REGION)
-sns_client = boto3.client('sns', region_name=AWS_REGION)
 sts_client = boto3.client('sts', region_name=AWS_REGION)
 
 
-def crete_sqs_for_students_list():
+def create_sqs_for_students_list():
     students: list[str] = open_students_list_file()
-    if students is None:
-        print("Nenhum aluno encontrado.")
+    if not students:
+        print("Nenhum aluno encontrado ou arquivo não localizado.")
         return
+
     account_id = sts_client.get_caller_identity()['Account']
 
     with open(OUTPUT_FILE, 'w') as f:
         f.write("Arquivo de credenciais Geradas para os Alunos\n\n")
 
-    for students_name in students:
-        print(f"--- Processando para o aluno: {students_name} ---")
+    for student_name in students:
+        print(f"--- Processando para o aluno: {student_name} ---")
 
-        queue_name = f"{PREFIX_SQS}{students_name}"
-        user_name = f"aluno_{students_name}"
-        policy_name = f"politica_sqs_{students_name}"
+        queue_name = f"{PREFIX_SQS}{student_name}"
+        user_name = f"aluno_{student_name}"
+        policy_name = f"politica_sqs_{student_name}"
         policy_arn = f"arn:aws:iam::{account_id}:policy/{policy_name}"
 
         try:
@@ -51,22 +50,20 @@ def crete_sqs_for_students_list():
             for key in iam_client.list_access_keys(UserName=user_name)['AccessKeyMetadata']:
                 iam_client.delete_access_key(UserName=user_name, AccessKeyId=key['AccessKeyId'])
 
-            print("Inscrevendo fila no SNS e aplicando política...")
-            sns_client.subscribe(TopicArn=SNS_TOPIC_ARN, Protocol='sqs', Endpoint=queue_arn)
-            create_queue_policy(queue_arn, queue_url)
-
             key_response = iam_client.create_access_key(UserName=user_name)
             access_key_id = key_response['AccessKey']['AccessKeyId']
             secret_access_key = key_response['AccessKey']['SecretAccessKey']
+
             with open(OUTPUT_FILE, 'a') as f:
-                f.write(f"--- Aluno: {students_name} ---\n")
+                f.write(f"--- Aluno: {student_name} ---\n")
                 f.write(f"Queue URL: {queue_url}\n")
                 f.write(f"Access Key ID: {access_key_id}\n")
                 f.write(f"Secret Access Key: {secret_access_key}\n\n")
-            print(f"Credenciais para {students_name} salvas com sucesso.")
+            print(f"Credenciais para {student_name} salvas com sucesso.")
 
         except Exception as e:
-            print(f"ERRO ao processar {students_name}: {e}")
+            print(f"ERRO ao processar {student_name}: {e}")
+
 
 def open_students_list_file() -> list[str] | None:
     try:
@@ -75,6 +72,7 @@ def open_students_list_file() -> list[str] | None:
     except FileNotFoundError:
         print(f"ERRO: Arquivo '{STUDENTS_FILE}' não encontrado.")
         return None
+
 
 def create_user_iam(user_name):
     print(f"Criando usuário IAM: {user_name}...")
@@ -98,23 +96,10 @@ def create_and_attach_user_policy(policy_arn, policy_name, queue_arn, user_name)
         iam_client.create_policy(PolicyName=policy_name, PolicyDocument=json.dumps(policy_document))
     except iam_client.exceptions.EntityAlreadyExistsException:
         print(f"Política {policy_name} já existe.")
+
     iam_client.attach_user_policy(UserName=user_name, PolicyArn=policy_arn)
 
 
-def create_queue_policy(queue_arn, queue_url):
-    sqs_policy = {
-        "Version": "2012-10-17",
-        "Statement": [{
-            "Effect": "Allow",
-            "Principal": {"Service": "sns.amazonaws.com"},
-            "Action": "sqs:SendMessage",
-            "Resource": queue_arn,
-            "Condition": {"ArnEquals": {"aws:SourceArn": SNS_TOPIC_ARN}}
-        }]
-    }
-    sqs_client.set_queue_attributes(QueueUrl=queue_url, Attributes={'Policy': json.dumps(sqs_policy)})
-
-
 if __name__ == "__main__":
-    crete_sqs_for_students_list()
+    create_sqs_for_students_list()
     input("Provisionamento concluído. Pressione [Enter] para sair.")
