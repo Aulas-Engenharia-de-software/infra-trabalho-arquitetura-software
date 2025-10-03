@@ -1,2 +1,4 @@
 .env
 .venv/**
+
+sqs/arquivos/credenciais_alunos.txt
