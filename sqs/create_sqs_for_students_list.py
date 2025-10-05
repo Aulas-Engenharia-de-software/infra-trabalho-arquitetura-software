@@ -5,9 +5,9 @@ from os import environ as env
 import boto3
 
 AWS_REGION = env.get('AWS_REGION', 'us-west-1')
-OUTPUT_FILE = env.get('OUTPUT_FILE', 'arquivos/credenciais_alunos.txt')
-STUDENTS_FILE = env.get('STUDENTS_FILE', 'arquivos/alunos.txt')
-PREFIX_SQS = env.get('PREFIX_SQS', 'fila_')
+OUTPUT_FILE = env.get('OUTPUT_FILE')
+STUDENTS_FILE = env.get('STUDENTS_FILE')
+PREFIX_SQS = env.get('PREFIX_SQS')
 PAUSE_TIME = 2
 
 iam_client = boto3.client('iam', region_name=AWS_REGION)
