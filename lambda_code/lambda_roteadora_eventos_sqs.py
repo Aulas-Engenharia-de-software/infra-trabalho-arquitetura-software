@@ -4,13 +4,7 @@ import boto3
 sqs_client = boto3.client('sqs')
 
 def lambda_handler(event, context):
-    """
-    Esta Lambda é acionada pelo EventBridge. Sua única responsabilidade
-    é extrair os dados do evento e encaminhá-los para a fila SQS
-    especificada no corpo da mensagem.
-    """
     print(f"Evento recebido: {event}")
-
     try:
         detalhe_evento = event['detail']
         url_fila_aluno = detalhe_evento['queueUrl']
@@ -28,6 +22,7 @@ def lambda_handler(event, context):
 
     except KeyError as e:
         print(f"ERRO: Chave esperada não encontrada no evento. Chave faltante: {e}")
+        raise e
     except Exception as e:
         print(f"ERRO inesperado ao processar o evento: {e}")
         raise e

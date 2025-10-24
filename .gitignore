@@ -1,4 +1,7 @@
 .env
 .venv/**
 
-sqs/arquivos/credenciais_alunos.txt
+.terraform.lock.hcl
+.terraform
+.terraform/**
+*.tfstate
