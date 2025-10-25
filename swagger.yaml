@@ -1,0 +1,135 @@
+# swagger.yaml
+swagger: '2.0'
+info:
+  version: '1.0.0'
+  title: API Atividades Alunos
+  description: API para receber e consultar atividades dos alunos.
+host:
+basePath: /prod
+schemes:
+  - https
+paths:
+  /enviar-mensagem:
+    post:
+      summary: Enviar Atividade
+      description: Recebe os dados de uma atividade, valida, e publica no barramento de eventos para processamento assíncrono.
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - in: body
+          name: activity
+          description: Dados da atividade a serem enviados.
+          required: true
+          schema:
+            $ref: '#/definitions/EnviarMensagemRequest'
+      responses:
+        200:
+          description: Mensagem roteada com sucesso.
+          schema:
+            $ref: '#/definitions/SuccessResponse'
+        400:
+          description: Erro de validação da requisição.
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        500:
+          description: Erro interno do servidor.
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+
+  /consultar-info-fila:
+    get:
+      summary: Consultar Status da Fila
+      description: Consulta os atributos de uma fila SQS específica para ver a quantidade de mensagens visíveis e em trânsito.
+      produces:
+        - application/json
+      parameters:
+        - name: queueName
+          in: query
+          description: O nome exato da fila SQS a ser consultada (ex= sqs_alex_roberto_hoffmann).
+          required: true
+          type: string
+      responses:
+        200:
+          description: Status da fila consultado com sucesso.
+          schema:
+            $ref: '#/definitions/ConsultaFilaResponse'
+        400:
+          description: Parâmetro 'queueName' ausente.
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        404:
+          description: Fila SQS não encontrada.
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        500:
+          description: Erro interno ao consultar a fila.
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+
+definitions:
+  EnviarMensagemRequest:
+    type: object
+    required:
+      - nomeAluno
+      - disciplina
+      - recomendacaoSerie
+      - fraseMotivacionalDia
+      - notaQueMereco
+      - nomeFila
+      - entregaFinal
+    properties:
+      nomeAluno:
+        type: string
+        description: Nome completo do aluno.
+      disciplina:
+        type: string
+        description: Disciplina da atividade.
+      recomendacaoSerie:
+        type: string
+        description: Recomendação de série ou nível.
+      fraseMotivacionalDia:
+        type: string
+        description: Frase motivacional relacionada ao dia.
+      notaQueMereco:
+        type: number
+        format: float
+        description: Nota numérica que o aluno acha que merece.
+      nomeFila:
+        type: string
+        description: Nome da fila SQS do aluno para onde a mensagem será roteada (ex= sqs_nome_do_aluno).
+      entregaFinal:
+        type: boolean
+        description: Indica se a atividade é uma entrega final (true/false).
+  SuccessResponse:
+    type: object
+    properties:
+      message:
+        type: string
+        description: Mensagem de sucesso.
+  ErrorResponse:
+    type: object
+    properties:
+      message:
+        type: string
+        description: Mensagem detalhando o erro.
+      campos_faltando:
+        type: array
+        items:
+          type: string
+        description: Lista de campos obrigatórios ausentes na requisição (apenas para erro 400).
+  ConsultaFilaResponse:
+    type: object
+    properties:
+      queueName:
+        type: string
+        description: Nome da fila consultada.
+      quantidadeMensagensVisiveis:
+        type: integer
+        format: int32
+        description: Número de mensagens visíveis na fila.
+      quantidadeMensagensEmTransito:
+        type: integer
+        format: int32
+        description: Número de mensagens sendo processadas (não visíveis).
